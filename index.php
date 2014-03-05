@@ -25,7 +25,9 @@
 		$time_start = microtime();
 		require('w3g-julas.php');
 	
-		$id = $_GET['id'];
+    if(array_key_exists('id', $_GET)) {
+		  $id = $_GET['id'];
+    }
 	
 		// path to the replay directory (*.w3g files) - must be ended with /
 		if (isset($_GET['w3g_path'])) {
