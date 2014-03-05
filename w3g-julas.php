@@ -66,7 +66,7 @@ class replay {
 		$this->header = @unpack('a28intro/Vheader_size/Vc_size/Vheader_v/Vu_size/Vblocks', $data);
 	
 		if ($this->header['intro'] != "Warcraft III recorded game") {
-			exit('Not a replay file: ' . $this->header['intro']);
+			exit('Not a replay file: ' . bin2hex($this->header['intro']));
 		}
 	
 		if ($this->header['header_v'] == 0) {

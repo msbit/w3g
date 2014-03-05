@@ -61,7 +61,7 @@
 				}
 			}
 			closedir($replays_dir);
-			if ($replays) {
+			if (isset($replays)) {
 				sort($replays);
 			} else {
 				echo('<p>Replay folder contains no replays!</p>');      
