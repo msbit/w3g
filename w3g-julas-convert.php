@@ -10,7 +10,7 @@ e-mail: julas@toya.net.pl
 function convert_bool($value) {
 	if (!$value)
 		return false;
-	
+
 	return true;
 }
 
@@ -122,7 +122,7 @@ function convert_itemid($value) {
 	if (ord($value{0}) < 0x41 || ord($value{0}) > 0x7A) {
 		return 0;
 	}
-	
+
 	// you can change the names but not the prefixes (h_, u_, a_, etc.)
 	// Human
 	elseif ($value{0} == 'h') {
@@ -817,7 +817,7 @@ function convert_buildingid($value) {
 	if (ord($value{0}) < 0x41 || ord($value{0}) > 0x7A) {
 		return 0;
 	}
-	
+
 	switch ($value) {
 		case 'halt': $value = 'Altar of Kings'; break;
 		case 'harm': $value = 'Workshop'; break;
@@ -894,14 +894,14 @@ function convert_time($value) {
 	$output = sprintf('%02d', intval($value/60000)).':';
 	$value = $value%60000;
 	$output .= sprintf('%02d', intval($value/1000));
-	
+
 	return $output;
 }
 
 function convert_yesno($value) {
 	if (!$value)
 		return 'No';
-	
+
 	return 'Yes';
 }
 

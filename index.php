@@ -24,11 +24,11 @@
 		<?php
 		$time_start = microtime();
 		require('w3g-julas.php');
-	
+
     if(array_key_exists('id', $_GET)) {
 		  $id = $_GET['id'];
     }
-	
+
 		// path to the replay directory (*.w3g files) - must be ended with /
 		if (isset($_GET['w3g_path'])) {
 			$w3g_path = $_GET['w3g_path'];
@@ -39,7 +39,7 @@
 		$txt_path = 'database/';
 		// only for links to webprofiles
 		$gateway = 'Kalimdor';
-	
+
 		// listing replay files (we need it even when viewing details for
 		// prev/next links
 		if (false !== ($replays_dir = opendir($w3g_path))) {
@@ -64,12 +64,12 @@
 			if (isset($replays)) {
 				sort($replays);
 			} else {
-				echo('<p>Replay folder contains no replays!</p>');      
+				echo('<p>Replay folder contains no replays!</p>');
 			}
 		} else {
 			echo('<p>Can\'t read replay folder!</p>');
 		}
-	
+
 		// listing replays - short info
 		if (!isset($id) && !isset($_FILES['replay_file'])) {
 			echo('<div id="top"><h1>index of '.$w3g_path.'</h1></div>
@@ -98,7 +98,7 @@
 				}
 				echo('<li><a class="title" href="?id='.urlencode($replay_file).'">'.$replay_file.'</a>
 				<a class="download" href="'. $w3g_path.$replay_file.'.w3g">&#187; download</a>('.round(filesize($w3g_path.$replay_file.'.w3g')/1024).' KB)<br />');
-	
+
 				$txt_file = fopen($txt_path.$replay_file.'.txt', 'r');
 				flock($txt_file, 1);
 				$replay = unserialize(fgets($txt_file));
@@ -131,11 +131,11 @@
 				echo(' | '.$map.' | '.convert_time($replay->header['length']).' | v1.'.$version.' '.$replay->header['ident'].'</li>');
 			}
 			echo('</ol></div>');
-	
+
 		// details about the replay
 		} else {
 			$pos = array_search($id, $replays);
-	
+
 			echo('
 			<h1>'.$id.' details</h1>
 			<div id="functions">');
@@ -146,7 +146,7 @@
 			<a href="?id='.urlencode($replays[$pos+1]).'">next &#187;</a>
 			</div>
 			<div id="content">');
-	
+
 			if (file_exists($txt_path.$id.'.txt')) {
 				$txt_file = fopen($txt_path.$id.'.txt', 'r');
 				flock($txt_file, 1);
@@ -162,7 +162,7 @@
 				echo('No replay file given!');
 				$error = 1;
 			}
-	
+
 			if (!isset($error)) {
 				if ($replay->errors) {
 					echo('<p><b>Warning!</b> The script has encountered some errors when parsing the replay. Please report them to the <a class="menuleft" href="mailto:julas&#64;toya.net.pl">author</a>. <a href="javascript:display(\'errors\');">&#187; details</a></p>
@@ -172,7 +172,7 @@
 					}
 					echo('</div>');
 				}
-			
+
 				echo('
 				<h2>General information</h2>');
 				$temp = strpos($replay->game['map'], ')')+1;
@@ -193,7 +193,7 @@
 				if (file_exists($w3g_path.$id.'.w3g')) {
 					echo('<li><br /><a class="download" href="'.urlencode($w3g_path.$id).'.w3g">&#187; download</a>('.round(filesize($w3g_path.$id.'.w3g')/1024).' KB)</li>');
 				}
-				
+
 				echo('</ul><ul class="info">
 				<li><b>lock teams:</b> '.convert_yesno($replay->game['lock_teams']).'</li>
 				<li><b>teams together:</b> '.convert_yesno($replay->game['teams_together']).'</li>
@@ -203,7 +203,7 @@
 				<li><br /><b>observers:</b> '.$replay->game['observers'].'</li>
 				<li><b>visibility:</b> '.$replay->game['visibility'].'</li>
 				</ul>');
-	
+
 				echo('<h2>Players</h2>
 				<div>');
 				$i = 1;
@@ -221,7 +221,7 @@
 							echo(' (loser)');
 						}
 						echo('<br />');
-						foreach ($players as $player) {          
+						foreach ($players as $player) {
 							echo('
 							<div class="section">
 							<img src="img/'.strtolower($replay->header['ident']).'/'.strtolower($player['race']).'.gif" alt="'.$player['race'].'" />');
@@ -246,7 +246,7 @@
 								echo($player['actions'].' actions | ');
 								echo(convert_time($player['time']).')<br />
 								<div class="details">');
-								
+
 								if (isset($player['heroes'])) {
 									foreach ($player['heroes'] as $name=>$info) {
 										// don't display info for heroes whose summoning was aborted
@@ -267,7 +267,7 @@
 										}
 									}
 								}
-								
+
 								if (isset($player['actions_details'])) {
 									echo('<br />
 									<a href="javascript:display(\'actions'.$player['player_id'].'\');">&#187; actions </a>
@@ -280,7 +280,7 @@
 									echo('</table>
 									<b>'.$player['actions'].'</b> total</div>');
 								}
-								
+
 								if (isset($player['hotkeys'])) {
 									echo('<a href="javascript:display(\'hotkeys'.$player['player_id'].'\');">&#187; hotkeys </a>
 									<div id="hotkeys'.$player['player_id'].'" class="additional">
@@ -291,8 +291,8 @@
 									}
 									echo('</table>(assigned/used)</div>');
 								}
-	
-								if (isset($player['units'])) {              
+
+								if (isset($player['units'])) {
 									echo('<a href="javascript:display(\'units'.$player['player_id'].'\');">&#187; units </a>
 									<div id="units'.$player['player_id'].'" class="additional">
 									<table>');
@@ -306,7 +306,7 @@
 									echo('</table>
 									<b>'.$ii.'</b> total</div>');
 								}
-	
+
 								if (isset($player['upgrades'])) {
 									echo('<a href="javascript:display(\'upgrades'.$player['player_id'].'\');">&#187; upgrades</a>
 									<div id="upgrades'.$player['player_id'].'" class="additional">
@@ -321,7 +321,7 @@
 									echo('</table>
 									<b>'.$ii.'</b> total</div>');
 								}
-	
+
 								if (isset($player['buildings'])) {
 									echo('<a href="javascript:display(\'buildings'.$player['player_id'].'\');">&#187; buildings</a>
 									<div id="buildings'.$player['player_id'].'" class="additional">
@@ -335,7 +335,7 @@
 									}
 									echo('</table>
 									<b>'.$ii.'</b> total</div>');
-	
+
 									echo('<a href="javascript:display(\'buildorder'.$player['player_id'].'\');">&#187; build order</a>
 									<div id="buildorder'.$player['player_id'].'" class="additional">');
 									foreach ($player['buildings']['order'] as $time=>$name) {
@@ -343,7 +343,7 @@
 									}
 									echo('</div>');
 								}
-	
+
 								if (isset($player['items'])) {
 									echo('<a href="javascript:display(\'items'.$player['player_id'].'\');">&#187; items</a>
 									<div id="items'.$player['player_id'].'" class="additional">
@@ -383,7 +383,7 @@
 				if ($replay->chat) {
 					echo('<h2>Chat log</h2>
 					<p>');
-					
+
 					$prev_time = 0;
 					foreach ($replay->chat as $content) {
 						if ($content['time'] - $prev_time > 45000) {

@@ -30,7 +30,7 @@ define('RETRAINING_TIME', 15000);
 class replay {
 	var $fp, $data, $leave_unknown, $continue_game, $referees, $time, $pause, $leaves, $errors, $header, $game,  $players, $teams, $chat, $filename, $parse_actions, $parse_chat;
 	var $max_datablock = MAX_DATABLOCK;
-	
+
 	function replay($filename, $parse_actions=true, $parse_chat=true) {
 		$this->parse_actions = $parse_actions;
 		$this->parse_chat = $parse_chat;
@@ -40,11 +40,11 @@ class replay {
 			exit($this->filename.': Can\'t read replay file');
 		}
 		flock($this->fp, 1);
-	
+
 		$this->parseheader();
 		$this->parsedata();
 		$this->cleanup();
-	
+
 		flock($this->fp, 3);
 		fclose($this->fp);
 		unset($this->fp);
@@ -59,16 +59,16 @@ class replay {
 		unset($this->leave_unknown);
 		unset($this->continue_game);
 	}
-	
+
 	// 2.0 [Header]
 	function parseheader() {
 		$data = fread($this->fp, 48);
 		$this->header = @unpack('a28intro/Vheader_size/Vc_size/Vheader_v/Vu_size/Vblocks', $data);
-	
+
 		if (strpos($this->header['intro'], "Warcraft III recorded game\x1a") !== 0) {
 			exit('Not a replay file: ' . bin2hex($this->header['intro']));
 		}
-	
+
 		if ($this->header['header_v'] == 0) {
 			$data = fread($this->fp, 16);
 			$this->header = array_merge($this->header, unpack('vminor_v/vmajor_v/vbuild_v/vflags/Vlength/Vchecksum', $data));
@@ -80,7 +80,7 @@ class replay {
 			$this->header['ident'] = strrev($this->header['ident']);
 		}
 	}
-	
+
 	function parsedata() {
 		fseek($this->fp, $this->header['header_size']);
 		$blocks_count = $this->header['blocks'];
@@ -96,7 +96,7 @@ class replay {
 			} else {
 				exit($this->filename.': Incomplete replay file');
 			}
-	
+
 			// 4.0 [Decompressed data]
 			if ($i == 0) {
 				$this->data = substr($this->data, 4);
@@ -105,7 +105,7 @@ class replay {
 			} elseif ($blocks_count - $i < 2) {
 				$this->max_datablock = 0;
 			}
-	
+
 			if ($this->parse_chat || $this->parse_actions) {
 				$this->parseblocks();
 			} else {
@@ -113,7 +113,7 @@ class replay {
 			}
 		}
 	}
-	
+
 	// 4.1 [PlayerRecord]
 	function loadplayer() {
 		$temp = unpack('Crecord_id/Cplayer_id', $this->data);
@@ -121,7 +121,7 @@ class replay {
 		$player_id = $temp['player_id'];
 		$this->players[$player_id]['player_id'] = $player_id;
 		$this->players[$player_id]['initiator'] = convert_bool(!$temp['record_id']);
-	
+
 		$this->players[$player_id]['name'] = '';
 		for ($i=0; $this->data{$i}!="\x00"; $i++) {
 			$this->players[$player_id]['name'] .= $this->data{$i};
@@ -131,8 +131,8 @@ class replay {
 			$this->players[$player_id]['name'] = 'Player '.$player_id;
 		}
 		$this->data = substr($this->data, $i+1);
-	
-	
+
+
 		if (ord($this->data{0}) == 1) { // custom game
 			$this->data = substr($this->data, 2);
 		} elseif (ord($this->data{0}) == 8) { // ladder game
@@ -150,7 +150,7 @@ class replay {
 		}
 		$this->game['player_count']++;
 	}
-	
+
 	function loadgame() {
 		// 4.2 [GameName]
 		$this->game['name'] = '';
@@ -158,10 +158,10 @@ class replay {
 			$this->game['name'] .= $this->data{$i};
 		}
 		$this->data = substr($this->data, $i+2); // 0-byte ending the string + 1 unknown byte
-	
+
 		// 4.3 [Encoded String]
 		$temp = '';
-	
+
 		for ($i=0; $this->data{$i} != chr(0); $i++) {
 			if ($i%8 == 0) {
 				$mask = ord($this->data{$i});
@@ -170,10 +170,10 @@ class replay {
 			}
 		}
 		$this->data = substr($this->data, $i+1);
-	
+
 		// 4.4 [GameSettings]
 		$this->game['speed'] = convert_speed(ord($temp{0}));
-		
+
 		if (ord($temp{1}) & 1) {
 			$this->game['visibility'] = convert_visibility(0);
 		} else if (ord($temp{1}) & 2) {
@@ -185,46 +185,46 @@ class replay {
 		}
 		$this->game['observers'] = convert_observers(((ord($temp{1}) & 16) == true) + 2*((ord($temp{1}) & 32) == true));
 		$this->game['teams_together'] = convert_bool(ord($temp{1}) & 64);
-		
+
 		$this->game['lock_teams'] = convert_bool(ord($temp{2}));
-		
+
 		$this->game['full_shared_unit_control'] = convert_bool(ord($temp{3}) & 1);
 		$this->game['random_hero'] = convert_bool(ord($temp{3}) & 2);
 		$this->game['random_races'] = convert_bool(ord($temp{3}) & 4);
 		if (ord($temp{3}) & 64) {
 			$this->game['observers'] = convert_observers(4);
 		}
-	
+
 		$temp = substr($temp, 13); // 5 unknown bytes + checksum
-		
+
 		// 4.5 [Map&CreatorName]
 		$temp = explode(chr(0), $temp);
 		$this->game['creator'] = $temp[1];
 		$this->game['map'] = $temp[0];
-	
+
 		// 4.6 [PlayerCount]
 		$temp = unpack('Vslots', $this->data);
 		$this->data = substr($this->data, 4);
 		$this->game['slots'] = $temp['slots'];
-	
+
 		// 4.7 [GameType]
 		$this->game['type'] = convert_game_type(ord($this->data[0]));
 		$this->game['private'] = convert_bool(ord($this->data[1]));
-	
+
 		$this->data = substr($this->data, 8); // 2 bytes are unknown and 4.8 [LanguageID] is useless
-	
+
 		// 4.9 [PlayerList]
 		while (ord($this->data{0}) == 0x16) {
 			$this->loadplayer();
 			$this->data = substr($this->data, 4);
 		}
-	
+
 		// 4.10 [GameStartRecord]
 		$temp = unpack('Crecord_id/vrecord_length/Cslot_records', $this->data);
 		$this->data = substr($this->data, 4);
 		$this->game = array_merge($this->game, $temp);
 		$slot_records = $temp['slot_records'];
-	
+
 		// 4.11 [SlotRecord]
 		for ($i=0; $i<$slot_records; $i++) {
 			if ($this->header['major_v'] >= 7) {
@@ -237,23 +237,23 @@ class replay {
 				$temp = unpack('Cplayer_id/x1/Cslot_status/Ccomputer/Cteam/Ccolor/Crace', $this->data);
 				$this->data = substr($this->data, 7);
 			}
-			
+
 			if ($temp['slot_status'] == 2) { // do not add empty slots
 				$temp['color'] = convert_color($temp['color']);
 				$temp['race'] = convert_race($temp['race']);
 				$temp['ai_strength'] = convert_ai($temp['ai_strength']);
-				
+
 				// player ID is always 0 for computer players
 				if ($temp['computer'] == 1)
 					$this->players[] = $temp;
 				else
 					$this->players[$temp['player_id']] = array_merge($this->players[$temp['player_id']], $temp);
-				
+
 				// Tome of Retraining
 				$this->players[$temp['player_id']]['retraining_time'] = 0;
 			}
 		}
-	
+
 		// 4.12 [RandomSeed]
 		$temp = unpack('Vrandom_seed/Cselect_mode/Cstart_spots', $this->data);
 		$this->data = substr($this->data, 6);
@@ -263,7 +263,7 @@ class replay {
 			$this->game['start_spots'] = $temp['start_spots'];
 		}
 	}
-	
+
 	// 5.0 [ReplayData]
 	function parseblocks() {
 		$data_left = strlen($this->data);
@@ -271,7 +271,7 @@ class replay {
 		while ($data_left > $this->max_datablock) {
 			$prev = $block_id;
 			$block_id = ord($this->data{0});
-	
+
 			switch ($block_id) {
 				// TimeSlot block
 				case 0x1E:
@@ -334,7 +334,7 @@ class replay {
 				case 0x17:
 				case 0x54:
 					$this->leaves++;
-					
+
 					$temp = unpack('x1/Vreason/Cplayer_id/Vresult/Vunknown', $this->data);
 					$this->players[$temp['player_id']]['time'] = $this->time;
 					$this->players[$temp['player_id']]['leave_reason'] = $temp['reason'];
@@ -389,12 +389,12 @@ class replay {
 			}
 		}
 	}
-	
+
 	// ACTIONS, the best part...
 	function parseactions($actionblock, $data_length) {
 		$block_length = 0;
 		$action = 0;
-			
+
 		while ($data_length) {
 			if ($block_length) {
 				$actionblock = substr($actionblock, $block_length);
@@ -403,16 +403,16 @@ class replay {
 			$player_id = $temp['player_id'];
 			$block_length = $temp['length']+3;
 			$data_length -= $block_length;
-			
+
 			$was_deselect = false;
 			$was_subupdate = false;
 			$was_subgroup = false;
-			
+
 			$n = 3;
 			while ($n < $block_length) {
 				$prev = $action;
 				$action = ord($actionblock{$n});
-				
+
 				switch ($action) {
 					// Unit/building ability (no additional parameters)
 					// here we detect the races, heroes, units, items, buildings,
@@ -422,31 +422,31 @@ class replay {
 						if ($this->header['major_v'] >= 13) {
 							$n++; // ability flag is one byte longer
 						}
-						
+
 						$itemid = strrev(substr($actionblock, $n+2, 4));
 						$value = convert_itemid($itemid);
-						
+
 						if (!$value) {
 							$this->players[$player_id]['actions_details'][convert_action('ability')]++;
-							
+
 							// handling Destroyers
 							if (ord($actionblock{$n+2}) == 0x33 && ord($actionblock{$n+3}) == 0x02) {
 								$name = substr(convert_itemid('ubsp'), 2);
 								$this->players[$player_id]['units']['order'][$this->time] = $this->players[$player_id]['units_multiplier'].' '.$name;
 								$this->players[$player_id]['units'][$name]++;
-								
+
 								$name = substr(convert_itemid('uobs'), 2);
 								$this->players[$player_id]['units'][$name]--;
 							}
 						} else {
 							$this->players[$player_id]['actions_details'][convert_action('buildtrain')]++;
-							
+
 							if (!$this->players[$player_id]['race_detected']) {
 								if ($race_detected = convert_race($itemid)) {
 									$this->players[$player_id]['race_detected'] = $race_detected;
 								}
 							}
-							
+
 							$name = substr($value, 2);
 							switch ($value{0}) {
 								case 'u':
@@ -474,7 +474,7 @@ class replay {
 									if (!$this->players[$player_id]['heroes'][$hero]['retraining_time']) {
 										$this->players[$player_id]['heroes'][$hero]['retraining_time'] = 0;
 									}
-									
+
 									// preventing too high levels (avoiding duplicated actions)
 									// the second condition is mainly for games with random heroes
 									// the third is for handling Tome of Retraining usage
@@ -497,7 +497,7 @@ class replay {
 								case 'i':
 									$this->players[$player_id]['items']['order'][$this->time] = $name;
 									$this->players[$player_id]['items'][$name]++;
-									
+
 									if ($itemid == 'tret') {
 										$this->players[$player_id]['retraining_time'] = $this->time;
 									}
@@ -516,14 +516,14 @@ class replay {
 							}
 							$this->players[$player_id]['last_itemid'] = $itemid;
 						}
-	
+
 						if ($this->header['major_v'] >= 7) {
 							$n+=14;
 						} else {
 							$n+=6;
 						}
 						break;
-	
+
 					// Unit/building ability (with target position)
 					case 0x11:
 						$this->players[$player_id]['actions']++;
@@ -546,7 +546,7 @@ class replay {
 							$n+=14;
 						}
 						break;
-	
+
 					// Unit/building ability (with target position and target object ID)
 					case 0x12:
 						$this->players[$player_id]['actions']++;
@@ -566,7 +566,7 @@ class replay {
 							$n+=22;
 						}
 						break;
-	
+
 					// Give item to Unit / Drop item on ground
 					case 0x13:
 						$this->players[$player_id]['actions']++;
@@ -580,7 +580,7 @@ class replay {
 							$n+=30;
 						}
 						break;
-	
+
 					// Unit/building ability (with two target positions and two item IDs)
 					case 0x14:
 						$this->players[$player_id]['actions']++;
@@ -600,7 +600,7 @@ class replay {
 							$n+=35;
 						}
 						break;
-	
+
 					// Change Selection (Unit, Building, Area)
 					case 0x16:
 						$temp = unpack('Cmode/vnum', substr($actionblock, $n+1, 3));
@@ -609,11 +609,11 @@ class replay {
 							$this->players[$player_id]['actions_details'][convert_action('select')]++;
 						}
 						$was_deselect = ($temp['mode'] == 0x02);
-						
+
 						$this->players[$player_id]['units_multiplier'] = $temp['num'];
 						$n+=4 + ($temp['num'] * 8);
 						break;
-	
+
 					// Assign Group Hotkey
 					case 0x17:
 						$this->players[$player_id]['actions']++;
@@ -621,20 +621,20 @@ class replay {
 						$temp = unpack('Cgroup/vnum', substr($actionblock, $n+1, 3));
 						$this->players[$player_id]['hotkeys'][$temp['group']]['assigned']++;
 						$this->players[$player_id]['hotkeys'][$temp['group']]['last_totalitems'] = $temp['num'];
-	
+
 						$n+=4 + ($temp['num'] * 8);
 						break;
-	
+
 					// Select Group Hotkey
 					case 0x18:
 						$this->players[$player_id]['actions']++;
 						$this->players[$player_id]['actions_details'][convert_action('selecthotkey')]++;
 						$this->players[$player_id]['hotkeys'][ord($actionblock{$n+1})]['used']++;
-	
+
 						$this->players[$player_id]['units_multiplier'] = $this->players[$player_id]['hotkeys'][ord($actionblock{$n+1})]['last_totalitems'];
 						$n+=3;
 						break;
-	
+
 					// Select Subgroup
 					case 0x19:
 						// OR is for torunament reps which don't have build_v
@@ -642,7 +642,7 @@ class replay {
 							if ($was_subgroup) { // can't think of anything better (check action 0x1A)
 								$this->players[$player_id]['actions']++;
 								$this->players[$player_id]['actions_details'][convert_action('subgroup')]++;
-								
+
 								// I don't have any better idea what to do when somebody binds buildings
 								// of more than one type to a single key and uses them to train units
 								// TODO: this is rarely executed, maybe it should go after if ($was_subgroup) {}?
@@ -658,7 +658,7 @@ class replay {
 							$n+=2;
 						}
 						break;
-	
+
 					// some subaction holder?
 					// version < 14b: Only in scenarios, maybe a trigger-related command
 					case 0x1A:
@@ -670,7 +670,7 @@ class replay {
 							$n+=10;
 						}
 						break;
-	
+
 					// Only in scenarios, maybe a trigger-related command
 					// version < 14b: Select Ground Item
 					case 0x1B:
@@ -682,7 +682,7 @@ class replay {
 							$n+=10;
 						}
 						break;
-						
+
 					// Select Ground Item
 					// version < 14b: Cancel hero revival (new in 1.13)
 					case 0x1C:
@@ -695,7 +695,7 @@ class replay {
 							$n+=9;
 						}
 						break;
-						
+
 					// Cancel hero revival
 					// Remove unit from building queue
 					case 0x1D:
@@ -737,22 +737,22 @@ class replay {
 							$n+=6;
 						}
 						break;
-	
+
 					// Found in replays with patch version 1.04 and 1.05.
 					case 0x21:
 						$n+=9;
 						break;
-	
+
 					// Change ally options
 					case 0x50:
 						$n+=6;
 						break;
-	
+
 					// Transfer resources
 					case 0x51:
 						$n+=10;
 						break;
-	
+
 					// Map trigger chat command (?)
 					case 0x60:
 						$n+=9;
@@ -761,14 +761,14 @@ class replay {
 						}
 						++$n;
 						break;
-	
+
 					// ESC pressed
 					case 0x61:
 						$this->players[$player_id]['actions']++;
 						$this->players[$player_id]['actions_details'][convert_action('esc')]++;
 						++$n;
 						break;
-	
+
 					// Scenario Trigger
 					case 0x62:
 						if ($this->header['major_v'] >= 7) {
@@ -777,14 +777,14 @@ class replay {
 							$n+=9;
 						}
 						break;
-	
+
 					// Enter select hero skill submenu for WarCraft III patch version <= 1.06
 					case 0x65:
 						$this->players[$player_id]['actions']++;
 						$this->players[$player_id]['actions_details'][convert_action('heromenu')]++;
 						++$n;
 						break;
-	
+
 					// Enter select hero skill submenu
 					// Enter select building submenu for WarCraft III patch version <= 1.06
 					case 0x66:
@@ -796,7 +796,7 @@ class replay {
 						}
 						$n+=1;
 						break;
-	
+
 					// Enter select building submenu
 					// Minimap signal (ping) for WarCraft III patch version <= 1.06
 					case 0x67:
@@ -808,7 +808,7 @@ class replay {
 							$n+=13;
 						}
 						break;
-	
+
 					// Minimap signal (ping)
 					// Continue Game (BlockB) for WarCraft III patch version <= 1.06
 					case 0x68:
@@ -818,7 +818,7 @@ class replay {
 							$n+=17;
 						}
 						break;
-	
+
 					// Continue Game (BlockB)
 					// Continue Game (BlockA) for WarCraft III patch version <= 1.06
 					case 0x69:
@@ -827,7 +827,7 @@ class replay {
 						$this->continue_game = 1;
 						$n+=17;
 						break;
-	
+
 					// Pause game
 					case 0x01:
 						$this->pause = true;
@@ -837,7 +837,7 @@ class replay {
 						$this->chat[] = $temp;
 						$n+=1;
 						break;
-	
+
 					// Resume game
 					case 0x02:
 						$temp = '';
@@ -847,19 +847,19 @@ class replay {
 						$this->chat[] = $temp;
 						$n+=1;
 						break;
-	
+
 					// Increase game speed in single player game (Num+)
 					case 0x04:
 					// Decrease game speed in single player game (Num-)
 					case 0x05:
 						$n+=1;
 						break;
-	
+
 					// Set game speed in single player game (options menu)
 					case 0x03:
 						$n+=2;
 						break;
-	
+
 					// Save game
 					case 0x06:
 						$i=1;
@@ -868,44 +868,44 @@ class replay {
 						}
 						$n+=1;
 						break;
-	
+
 					// Save game finished
 					case 0x07:
 						$n+=5;
 						break;
-	
+
 					// Only in scenarios, maybe a trigger-related command
 					case 0x75:
 						$n+=2;
 						break;
-	
+
 					default:
 						$temp = '';
-						
+
 						for ($i=3; $i<$n; $i++) { // first 3 bytes are player ID and length
 							$temp .= sprintf('%02X', ord($actionblock{$i})).' ';
 						}
-							 
+
 						$temp .= '['.sprintf('%02X', ord($actionblock{$n})).'] ';
-						
+
 						for ($i=1; $n+$i<strlen($actionblock); $i++) {
 							$temp .= sprintf('%02X', ord($actionblock{$n+$i})).' ';
 						}
-						
+
 						$this->errors[] = 'Unknown action at '.convert_time($this->time).': 0x'.sprintf('%02X', $action).', prev: 0x'.sprintf('%02X', $prev).', dump: '.$temp;
-						
+
 						// skip to the next CommandBlock
 						// continue 3, not 2 because of http://php.net/manual/en/control-structures.continue.php#68193
 						// ('Current functionality treats switch structures as looping in regards to continue.')
 						continue 3;
 				}
-				
+
 			}
 			$was_deselect = ($action == 0x16);
 			$was_subupdate = ($action == 0x19);
 		}
 	}
-	
+
 	function cleanup() {
 		// players time cleanup
 		foreach ($this->players as $player) {
@@ -913,7 +913,7 @@ class replay {
 				$this->players[$player['player_id']]['time'] = $this->header['length'];
 			}
 		}
-	
+
 		// counting apm
 		if ($this->parse_actions) {
 			foreach ($this->players as $player_id=>$info) {
@@ -923,21 +923,21 @@ class replay {
 				}
 			}
 		}
-	
+
 		// splitting teams
 		foreach ($this->players as $player_id=>$info) {
 			if (isset($info['team'])) { // to eliminate zombie-observers caused by Waaagh!TV
 				$this->teams[$info['team']][$player_id] = $info;
 			}
 		}
-	
+
 		// winner/loser cleanup
 		if ($this->game['winner_team'] == 99) { // saver
 			$this->game['winner_team'] = $this->players[$this->game['saver_id']]['team'];
 		} elseif ($this->game['loser_team'] == 99) {
 			$this->game['loser_team'] = $this->players[$this->game['saver_id']]['team'];
 		}
-	
+
 		$winner = strlen($this->game['winner_team']);
 		$loser = strlen($this->game['loser_team']);
 		if (!$winner && $loser) {
@@ -956,6 +956,6 @@ class replay {
 			}
 		}
 	}
-	
+
 }
 ?>
